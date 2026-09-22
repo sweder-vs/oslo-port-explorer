@@ -122,11 +122,12 @@ img { max-width: 100%; }
 .drawer-chips { display: flex; flex-direction: column; gap: 6px; }
 .drawer-chips span { font-size: 13.5px; background: var(--seg); padding: 8px 12px; border-radius: 10px; }
 .drawer-flag { margin-top: 14px; font-size: 12.5px; color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); border: 1px dashed color-mix(in srgb, var(--warn) 45%, transparent); border-radius: 10px; padding: 9px 11px; line-height: 1.4; }
+/* once a site is open, get the rail out of the way so there's room to actually see it */
+#hotspot-rail.drawer-open { opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
 @media (max-width: 560px) {
   #drawer { width: 100%; border-radius: 0; }
   #hotspot-rail { width: auto; }
   .hc-tag { display: none; }
-  #hotspot-rail.drawer-open { opacity: 0; pointer-events: none; }
   #hint { white-space: normal; text-align: center; max-width: 86%; width: max-content; }
 }
 @media (prefers-reduced-motion: reduce) { #drawer { transition: none; } }
@@ -288,6 +289,9 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
           <div id="legend-rows"></div>
           <div class="lg-title" style="margin-top:8px">Shipping routes</div>
           <div id="legend-routes"></div>
+          <div class="lg-title" style="margin-top:8px">On the base map</div>
+          <div class="lg-row"><span class="lg-line" style="--route-color:#e03a3a"></span>E18 / E6 motorway</div>
+          <div class="lg-row"><span class="lg-line" style="--route-color:#3a6fe0"></span>Havnebanen rail line to Alnabru</div>
         </div>
         <aside id="drawer" aria-hidden="true">
           <button id="drawer-close" aria-label="Close and return to overview">Close</button>
@@ -540,11 +544,11 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
 
   /* ---------------- data ---------------- */
   var CATEGORIES = {
-    cargo: { label: 'Cargo port', slot: 's1' },
-    ferry: { label: 'Passenger & ferry', slot: 's2' },
-    culture: { label: 'Culture & business', slot: 's3' },
-    housing: { label: 'Housing & recreation', slot: 's4' },
-    transition: { label: 'Redevelopment in progress', slot: 's5' }
+    cargo: { label: 'Cargo port', slot: 's1', color: 0x6fb4f0 },
+    ferry: { label: 'Passenger & ferry', slot: 's2', color: 0xff7a5c },
+    culture: { label: 'Culture & business', slot: 's3', color: 0x5fd3a1 },
+    housing: { label: 'Housing & recreation', slot: 's4', color: 0xf0c35a },
+    transition: { label: 'Redevelopment in progress', slot: 's5', color: 0x9a88f5 }
   };
 
   var HOTSPOTS = [
@@ -662,6 +666,7 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
     drawer.setAttribute('aria-hidden', 'false');
     rail.classList.add('drawer-open');
     hint.hidden = true;
+    setDrawerViewOffset(true);
     flyTo(h, true);
   }
 
@@ -671,7 +676,22 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
     drawer.classList.remove('open');
     drawer.setAttribute('aria-hidden', 'true');
     rail.classList.remove('drawer-open');
+    setDrawerViewOffset(false);
     flyTo(null, true);
+  }
+
+  /* the drawer covers the right ~40% of the map panel on desktop; shift the
+     camera's frustum so the subject lands centered in what's actually still
+     visible, instead of being centered on the full (partly-hidden) canvas */
+  function setDrawerViewOffset(open) {
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    if (!w || !h) return;
+    if (open && window.innerWidth > 560) {
+      var full = w * 1.6;
+      camera.setViewOffset(full, h, full * 0.5 - 0.24 * w, 0, w, h);
+    } else {
+      camera.clearViewOffset();
+    }
   }
   document.getElementById('drawer-close').addEventListener('click', closeDrawer);
 
@@ -962,14 +982,18 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
     g.traverse(function (o) { o.userData.hotspotId = h.id; });
     scene.add(g);
 
-    /* a small marker pin so each site reads clearly at overview distance */
+    /* a marker pin colored by area type, so function reads at a glance without cross-checking the list */
     if (h.id !== 'bjorvika') {
-      var pin = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 16), new THREE.MeshBasicMaterial({ color: palette.brass }));
-      pin.position.set(x, topY + 3.2, z);
+      var catColor = CATEGORIES[h.category].color;
+      var pinGlow = glowSprite(catColor, 7);
+      pinGlow.position.set(x, topY + 3.3, z);
+      scene.add(pinGlow);
+      var pin = new THREE.Mesh(new THREE.SphereGeometry(0.62, 16, 16), new THREE.MeshBasicMaterial({ color: catColor }));
+      pin.position.set(x, topY + 3.3, z);
       pin.userData.hotspotId = h.id;
       scene.add(pin);
-      var stem = box(0.09, 3.2, 0.09, palette.brass);
-      stem.position.set(x, topY + 1.6, z);
+      var stem = boxUnlit(0.09, 3.4, 0.09, catColor);
+      stem.position.set(x, topY + 1.65, z);
       stem.userData.hotspotId = h.id;
       scene.add(stem);
     }
@@ -982,7 +1006,7 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
 
   var cam = { tx: OVERVIEW.tx, tz: OVERVIEW.tz, dist: OVERVIEW.dist, az: OVERVIEW.az, el: OVERVIEW.el };
   var goal = { tx: cam.tx, tz: cam.tz, dist: cam.dist, az: cam.az, el: cam.el };
-  var animStart = null, animFrom = null, animDur = 1400;
+  var animStart = null, animFrom = null, animDur = 1100;
   var autoRotate = !reduceMotion;
   var userInteracted = false;
 
@@ -993,7 +1017,8 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
       target = OVERVIEW;
     } else {
       var dx = h.wx - cam.tx;
-      var dist = h.id === 'bjorvika' ? FOCUS_DIST * 1.4 : FOCUS_DIST;
+      var distMul = { bjorvika: 1.4, sydhavna: 2.1 }[h.id] || 1;
+      var dist = FOCUS_DIST * distMul;
       target = { tx: h.wx, tz: h.wz, dist: dist, el: FOCUS_EL, az: Math.atan2(dx, 24) * 0.7 + 0.35 };
     }
     animFrom = { tx: cam.tx, tz: cam.tz, dist: cam.dist, az: cam.az, el: cam.el };
@@ -1038,8 +1063,8 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
     if (!dragging) return;
     var dx = e.clientX - lastX, dy = e.clientY - lastY;
     if (Math.abs(dx) + Math.abs(dy) > 3) dragMoved = true;
-    cam.az -= dx * 0.005;
-    cam.el = Math.min(1.48, Math.max(0.1, cam.el + dy * 0.0065));
+    cam.az -= dx * 0.0075;
+    cam.el = Math.min(1.48, Math.max(0.1, cam.el + dy * 0.0085));
     lastX = e.clientX; lastY = e.clientY;
   });
   window.addEventListener('pointerup', function () { dragging = false; });
@@ -1060,7 +1085,7 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
 
   canvas.addEventListener('wheel', function (e) {
     e.preventDefault();
-    cam.dist = Math.min(160, Math.max(8, cam.dist + e.deltaY * 0.05));
+    cam.dist = Math.min(160, Math.max(8, cam.dist * Math.pow(1.0022, e.deltaY)));
   }, { passive: false });
 
   /* ---------------- resize + loop ---------------- */
