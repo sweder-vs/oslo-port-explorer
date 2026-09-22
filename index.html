@@ -964,9 +964,38 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
     return g;
   }
 
+  /* a soft colored patch on the ground itself, so the AREA (not just the pin)
+     reads by category from directly above, at any zoom level */
+  function zonePatch(color, radius) {
+    var c = document.createElement('canvas'); c.width = c.height = 128;
+    var ctx = c.getContext('2d');
+    var r = (color >> 16) & 255, gr = (color >> 8) & 255, b = color & 255;
+    var rgb = r + ',' + gr + ',' + b;
+    var grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, 'rgba(' + rgb + ',0.6)');
+    grad.addColorStop(0.65, 'rgba(' + rgb + ',0.36)');
+    grad.addColorStop(1, 'rgba(' + rgb + ',0)');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 128, 128);
+    var tex = new THREE.CanvasTexture(c);
+    var mesh = new THREE.Mesh(
+      new THREE.CircleGeometry(radius, 32),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
+    );
+    mesh.rotation.x = -Math.PI / 2;
+    return mesh;
+  }
+  var ZONE_RADIUS = { vippetangen: 6.5, bjorvika: 8, sorenga: 5.5, filipstad: 5.5, sydhavna: 11, akerbrygge: 4.5 };
+
   var LANDMARK_SCALE = 0.8;
   HOTSPOTS.forEach(function (h) {
     var x = h.wx, z = h.wz, topY = GROUND_Y;
+    var catColor = CATEGORIES[h.category].color;
+
+    var zone = zonePatch(catColor, ZONE_RADIUS[h.id] || 6);
+    zone.position.set(x, topY + 0.03, z);
+    zone.userData.hotspotId = h.id;
+    scene.add(zone);
+
     var g, scaleMul = 1;
     if (h.id === 'vippetangen') g = warehouseAndFerry(x, z, topY);
     else if (h.id === 'bjorvika') {
@@ -982,9 +1011,8 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
     g.traverse(function (o) { o.userData.hotspotId = h.id; });
     scene.add(g);
 
-    /* a marker pin colored by area type, so function reads at a glance without cross-checking the list */
+    /* a marker pin colored by area type too, for a clear "click here" target up close */
     if (h.id !== 'bjorvika') {
-      var catColor = CATEGORIES[h.category].color;
       var pinGlow = glowSprite(catColor, 7);
       pinGlow.position.set(x, topY + 3.3, z);
       scene.add(pinGlow);
