@@ -1,0 +1,949 @@
+<title>Port of Oslo Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ink: #0c1e28;
+    --ink-soft: #3c5764;
+    --muted: #6c8590;
+    --paper: #eef3f1;
+    --surface: #ffffff;
+    --surface-2: #e4ece9;
+    --line: rgba(12,30,40,0.12);
+    --fjord: #14374f;
+    --fjord-ink: #eaf2f5;
+    --tide: #0e8f82;
+    --tide-strong: #0b6d64;
+    --tide-wash: rgba(14,143,130,0.12);
+    --brass: #c9862e;
+    --chart-surface: #fcfcfb;
+    --chart-ink: #0b0b0b;
+    --chart-ink-2: #52514e;
+    --chart-muted: #898781;
+    --chart-grid: #e1e0d9;
+    --chart-axis: #c3c2b7;
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #4a3aa7;
+    --seq-fill: #b7d3f6; --seq-stroke: #3987e5;
+    --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+    --sky-a: #a9cdd8; --sky-b: #e9f1ee; --sky-glow: rgba(255,255,255,0);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #eaf1ef; --ink-soft: #b9c9c6; --muted: #8fa19d;
+      --paper: #081118; --surface: #101c24; --surface-2: #16242c;
+      --line: rgba(234,241,239,0.14);
+      --fjord: #0a1f2b; --fjord-ink: #dcecf0;
+      --tide: #2bd6c4; --tide-strong: #17b3a2; --tide-wash: rgba(43,214,196,0.14);
+      --brass: #e8a94f;
+      --chart-surface: #1a1a19; --chart-ink: #ffffff; --chart-ink-2: #c3c2b7;
+      --chart-muted: #898781; --chart-grid: #2c2c2a; --chart-axis: #383835;
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #9085e9;
+      --sky-a: #030a10; --sky-b: #123244; --sky-glow: rgba(90,224,180,0.16);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #eaf1ef; --ink-soft: #b9c9c6; --muted: #8fa19d;
+    --paper: #081118; --surface: #101c24; --surface-2: #16242c;
+    --line: rgba(234,241,239,0.14);
+    --fjord: #0a1f2b; --fjord-ink: #dcecf0;
+    --tide: #2bd6c4; --tide-strong: #17b3a2; --tide-wash: rgba(43,214,196,0.14);
+    --brass: #e8a94f;
+    --chart-surface: #1a1a19; --chart-ink: #ffffff; --chart-ink-2: #c3c2b7;
+    --chart-muted: #898781; --chart-grid: #2c2c2a; --chart-axis: #383835;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #9085e9;
+    --sky-a: #030a10; --sky-b: #123244; --sky-glow: rgba(90,224,180,0.16);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; margin: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  }
+  h1, h2, h3 { font-family: 'Bricolage Grotesque', system-ui, sans-serif; text-wrap: balance; margin: 0; }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+  /* ---- top bar ---- */
+  #topbar {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 40;
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px clamp(14px, 3vw, 24px);
+    background: var(--fjord); color: var(--fjord-ink);
+    border-bottom: 1px solid rgba(0,0,0,0.2);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand svg { flex: 0 0 auto; }
+  .brand-text { line-height: 1.15; }
+  .brand-text .name { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 0.02em; white-space: nowrap; }
+  .brand-text .tag { font-size: 11px; color: color-mix(in srgb, var(--fjord-ink) 65%, transparent); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* ---- dashboard shell ---- */
+  #dashboard { max-width: 1400px; margin: 0 auto; padding: 20px clamp(14px, 3vw, 28px) 60px; }
+  .dash-grid { display: grid; grid-template-columns: 1fr 380px; gap: 16px; align-items: start; margin-top: 16px; }
+  @media (max-width: 980px) { .dash-grid { grid-template-columns: 1fr; } }
+  .east-col { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ---- explore / map panel ---- */
+  #view-explore {
+    position: relative; overflow: hidden;
+    height: clamp(420px, 56vw, 640px);
+    border-radius: 16px; border: 1px solid var(--line);
+    box-shadow: 0 4px 22px rgba(0,0,0,0.12);
+    background:
+      radial-gradient(120% 70% at 15% 0%, var(--sky-glow), transparent 60%),
+      linear-gradient(180deg, var(--sky-a), var(--sky-b) 75%);
+  }
+  #scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  #scene:active { cursor: grabbing; }
+
+  #hint {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+    background: rgba(0,0,0,0.55); color: #fff; font-size: 12.5px; letter-spacing: 0.02em;
+    padding: 8px 14px; border-radius: 999px; pointer-events: none;
+    transition: opacity 0.6s ease; backdrop-filter: blur(4px);
+  }
+  #hint[hidden] { opacity: 0; display: block !important; }
+
+  #map-credit {
+    position: absolute; right: 12px; bottom: 10px;
+    font-size: 10.5px; color: rgba(255,255,255,0.55);
+    background: rgba(0,0,0,0.35); padding: 3px 8px; border-radius: 999px; pointer-events: none;
+  }
+
+  #hotspot-rail {
+    position: absolute; left: clamp(12px, 2.5vw, 22px); top: 16px;
+    display: flex; flex-direction: column; gap: 8px; max-width: 220px;
+  }
+  .hotspot-chip {
+    appearance: none; text-align: left; cursor: pointer;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    color: var(--ink); border: 1px solid var(--line); border-left: 4px solid var(--cat-color, var(--tide));
+    border-radius: 10px 12px 12px 10px;
+    padding: 9px 12px; font: inherit; backdrop-filter: blur(6px);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    transition: border-color 0.2s ease, transform 0.15s ease;
+  }
+  .hotspot-chip:hover { transform: translateX(2px); }
+  .hotspot-chip[aria-pressed="true"] {
+    background: var(--tide-wash);
+    border-top-color: var(--tide); border-right-color: var(--tide); border-bottom-color: var(--tide);
+  }
+  .hotspot-chip .hc-name { display: block; font-weight: 600; font-size: 13.5px; }
+  .hotspot-chip .hc-tag { display: block; font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  #legend {
+    position: absolute; right: clamp(12px, 2.5vw, 22px); top: 16px;
+    display: flex; flex-direction: column; gap: 5px;
+    background: color-mix(in srgb, var(--surface) 82%, transparent);
+    border: 1px solid var(--line); border-radius: 12px; backdrop-filter: blur(6px);
+    padding: 10px 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  }
+  #legend .lg-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 2px; }
+  #legend .lg-row { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--ink-soft); }
+  #legend .lg-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: var(--dot, var(--tide)); }
+  @media (max-width: 720px) { #legend { display: none; } }
+
+  #drawer {
+    position: absolute; top: 0; right: 0; height: 100%; width: min(360px, 88vw);
+    z-index: 2;
+    background: var(--surface); color: var(--ink);
+    border-left: 1px solid var(--line);
+    box-shadow: -12px 0 30px rgba(0,0,0,0.18);
+    transform: translateX(100%); transition: transform 0.45s cubic-bezier(.2,.8,.2,1);
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+  }
+  #drawer.open { transform: translateX(0); }
+  #drawer-close {
+    appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    width: 30px; height: 30px; border-radius: 999px; cursor: pointer; font-size: 15px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    position: absolute; top: 12px; right: 12px; z-index: 2;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+  .drawer-photo {
+    position: relative; margin: -20px -20px 14px; aspect-ratio: 4 / 3; overflow: hidden;
+    background: var(--surface-2);
+  }
+  .drawer-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .drawer-credit {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(0deg, rgba(0,0,0,0.6), transparent);
+    color: rgba(255,255,255,0.85); font-size: 10px; padding: 14px 10px 6px;
+  }
+  .drawer-cat {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+    color: var(--ink-soft); background: var(--surface-2); border-radius: 999px; padding: 4px 10px 4px 8px;
+    margin-top: 12px;
+  }
+  .drawer-cat .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dot, var(--tide)); }
+  .drawer-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tide-strong); margin: 10px 0 8px; clear: both; }
+  .drawer-title { font-size: 24px; font-weight: 700; margin-bottom: 10px; }
+  .drawer-body { font-size: 14px; line-height: 1.6; color: var(--ink-soft); margin: 0 0 14px; }
+  .drawer-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .drawer-chips span {
+    font-size: 11.5px; background: var(--surface-2); border: 1px solid var(--line);
+    padding: 5px 9px; border-radius: 999px; color: var(--ink-soft);
+  }
+  .drawer-flag {
+    font-size: 11.5px; color: var(--brass); border: 1px dashed color-mix(in srgb, var(--brass) 55%, transparent);
+    background: color-mix(in srgb, var(--brass) 10%, transparent); border-radius: 10px; padding: 8px 10px; line-height: 1.4;
+  }
+
+  /* ---- numbers: north stat strip + east column ---- */
+  .numbers-head { margin-bottom: 14px; }
+  .numbers-head h2 { font-size: 22px; font-weight: 700; }
+  .numbers-head p { color: var(--muted); font-size: 13.5px; margin-top: 4px; max-width: 60ch; }
+
+  .sample-banner {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: var(--tide-wash); border: 1px solid color-mix(in srgb, var(--tide) 45%, transparent);
+    color: var(--ink); border-radius: 12px; padding: 12px 14px; font-size: 13px; line-height: 1.5; margin-bottom: 22px;
+  }
+  .sample-banner b { color: var(--tide-strong); }
+
+  .hero-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  @media (max-width: 720px) { .hero-stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat-tile { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  .stat-tile .st-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .stat-tile .st-value { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; font-size: 26px; font-weight: 600; margin: 4px 0 2px; }
+  .stat-tile .st-delta { font-size: 12px; color: var(--ink-soft); }
+  .stat-tile .st-delta.up { color: var(--good); }
+  .tag-sample { display: inline-block; font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--brass); border: 1px solid color-mix(in srgb, var(--brass) 50%, transparent); border-radius: 999px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+
+  .charts-grid { display: flex; flex-direction: column; gap: 14px; }
+  .card { background: var(--chart-surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .card h3 { font-size: 14px; font-weight: 600; color: var(--chart-ink); }
+  .card .card-sub { font-size: 11.5px; color: var(--chart-muted); margin: 2px 0 10px; }
+  .card svg { width: 100%; height: auto; overflow: visible; }
+  .card svg text { font-family: 'IBM Plex Sans', sans-serif; fill: var(--chart-ink-2); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 11.5px; color: var(--chart-ink-2); }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+
+  .scorecard-row { display: flex; flex-direction: column; gap: 10px; }
+  .score-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; display: flex; gap: 10px; align-items: flex-start; }
+  .score-card .pip { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex: 0 0 auto; }
+  .score-card .sc-label { font-size: 12.5px; font-weight: 600; }
+  .score-card .sc-note { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .table-wrap { overflow-x: auto; border-radius: 14px; }
+  table.data-table th, table.data-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  table.data-table th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; background: var(--surface-2); }
+  table.data-table td.num { font-family: 'IBM Plex Mono', monospace; color: var(--muted); }
+  table.data-table tr:last-child td { border-bottom: none; }
+
+  /* ---- source citations (interactive) ---- */
+  .src-btn {
+    appearance: none; border: 0; background: none; cursor: pointer; font: inherit;
+    font-size: 10.5px; color: var(--tide-strong); padding: 0; margin-top: 6px;
+    display: inline-flex; align-items: center; gap: 4px; text-decoration: underline dotted;
+  }
+  .src-note {
+    font-size: 11px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 9px; margin-top: 6px; line-height: 1.4;
+  }
+  .src-note[hidden] { display: none; }
+
+  @media (max-width: 560px) {
+    #drawer { width: 100%; }
+    #hotspot-rail.drawer-open { opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #drawer { transition: none; }
+    .hotspot-chip { transition: none; }
+  }
+</style>
+
+<div id="app">
+  <header id="topbar">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <circle cx="13" cy="13" r="12" stroke="currentColor" stroke-opacity="0.35"/>
+        <path d="M6 16c2-2 3.5 2 6 0s3.5 2 6 0" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+        <path d="M13 6v7" stroke="var(--tide)" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M9.5 8.5 13 6l3.5 2.5" stroke="var(--tide)" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="brand-text">
+        <div class="name">Port of Oslo</div>
+        <div class="tag">Field guide &amp; dashboard</div>
+      </div>
+    </div>
+  </header>
+
+  <main id="dashboard">
+    <div class="numbers-head">
+      <h2>Port performance at a glance</h2>
+      <p>Throughput, investment and green-transition indicators for Port of Oslo &mdash; click a site on the map to explore it.</p>
+    </div>
+
+    <div class="sample-banner">
+      <span>&#9888;&#65039;</span>
+      <span><b>Sample data.</b> Every number below is illustrative so you can see the dashboard working &mdash; swap in verified figures from Oslo Havn's annual report / statistics pages and SSB before this gets submitted. Click a "source" link to see where to find the real figure.</span>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat-tile">
+        <div class="st-label">Container throughput <span class="tag-sample">sample</span></div>
+        <div class="st-value">240k</div>
+        <div class="st-delta up">TEU &middot; 2024</div>
+        <button class="src-btn" data-note="Real figure: Oslo Havn's annual report (Nøkkeltall / statistics page) reports yearly TEU throughput.">Source &#9432;</button>
+        <div class="src-note" hidden></div>
+      </div>
+      <div class="stat-tile">
+        <div class="st-label">Vessel calls <span class="tag-sample">sample</span></div>
+        <div class="st-value">3,180</div>
+        <div class="st-delta">per year</div>
+        <button class="src-btn" data-note="Real figure: Oslo Havn statistics / Kystverket national port-call registers list vessel calls per port per year.">Source &#9432;</button>
+        <div class="src-note" hidden></div>
+      </div>
+      <div class="stat-tile">
+        <div class="st-label">Port-related jobs <span class="tag-sample">sample</span></div>
+        <div class="st-value">21,500</div>
+        <div class="st-delta">direct + indirect</div>
+        <button class="src-btn" data-note="Real figure: Oslo Havn's own employment/value-added studies, or Norske Havner benchmarking, usually give direct + indirect jobs.">Source &#9432;</button>
+        <div class="src-note" hidden></div>
+      </div>
+      <div class="stat-tile">
+        <div class="st-label">Green investment <span class="tag-sample">sample</span></div>
+        <div class="st-value">NOK 340m</div>
+        <div class="st-delta">committed, 2020&ndash;2025</div>
+        <button class="src-btn" data-note="Real figure: ENOVA's project register (e.g. the Revierkaia shore-power grant) plus Oslo Havn's own investment plan.">Source &#9432;</button>
+        <div class="src-note" hidden></div>
+      </div>
+    </div>
+
+    <div class="dash-grid">
+      <section id="view-explore">
+        <canvas id="scene" aria-label="3D diorama of Oslo harbour with six clickable sites"></canvas>
+        <div id="hint">Drag to look around &middot; click a site to fly in</div>
+        <div id="map-credit">Base map: Oslo Havn (oslohavn.no), 2019</div>
+
+        <nav id="hotspot-rail" aria-label="Harbour locations"></nav>
+
+        <div id="legend" aria-hidden="true">
+          <div class="lg-title">Area type</div>
+          <div id="legend-rows"></div>
+        </div>
+
+        <aside id="drawer" aria-hidden="true">
+          <button id="drawer-close" aria-label="Close and return to overview">&times;</button>
+          <div class="drawer-photo" id="drawer-photo">
+            <img id="drawer-img" alt="">
+            <div class="drawer-credit" id="drawer-credit"></div>
+          </div>
+          <div class="drawer-cat" id="drawer-cat"></div>
+          <div class="drawer-eyebrow" id="drawer-eyebrow"></div>
+          <h2 class="drawer-title" id="drawer-title"></h2>
+          <p class="drawer-body" id="drawer-body"></p>
+          <div class="drawer-chips" id="drawer-chips"></div>
+          <div class="drawer-flag">Draft copy &mdash; confirm exact dates &amp; figures before submitting.</div>
+        </aside>
+      </section>
+
+      <aside class="east-col">
+        <div class="charts-grid">
+          <div class="card">
+            <h3>Container throughput</h3>
+            <div class="card-sub">TEU, thousands &middot; sample trend</div>
+            <svg viewBox="0 0 460 200" role="img" aria-label="Sample line chart of container throughput from 2019 to 2024, dipping in 2020 and rising to a peak in 2024">
+              <line x1="40" y1="20" x2="40" y2="160" stroke="var(--chart-axis)" stroke-width="1"/>
+              <line x1="40" y1="160" x2="440" y2="160" stroke="var(--chart-axis)" stroke-width="1"/>
+              <g stroke="var(--chart-grid)" stroke-width="1">
+                <line x1="40" y1="120" x2="440" y2="120"/>
+                <line x1="40" y1="80" x2="440" y2="80"/>
+                <line x1="40" y1="40" x2="440" y2="40"/>
+              </g>
+              <polygon points="40,160 40,92 112,116 184,96 256,68 328,84 400,56 400,160" fill="var(--seq-fill)" opacity="0.55"/>
+              <polyline points="40,92 112,116 184,96 256,68 328,84 400,56" fill="none" stroke="var(--seq-stroke)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+              <g fill="var(--seq-stroke)">
+                <circle cx="40" cy="92" r="3.5"/><circle cx="112" cy="116" r="3.5"/><circle cx="184" cy="96" r="3.5"/>
+                <circle cx="256" cy="68" r="3.5"/><circle cx="328" cy="84" r="3.5"/><circle cx="400" cy="56" r="4" stroke="var(--chart-surface)" stroke-width="2"/>
+              </g>
+              <text x="400" y="46" text-anchor="middle" font-size="12" font-weight="600" fill="var(--chart-ink)">240k</text>
+              <g font-size="11" fill="var(--chart-muted)">
+                <text x="40" y="176" text-anchor="middle">2019</text>
+                <text x="112" y="176" text-anchor="middle">2020</text>
+                <text x="184" y="176" text-anchor="middle">2021</text>
+                <text x="256" y="176" text-anchor="middle">2022</text>
+                <text x="328" y="176" text-anchor="middle">2023</text>
+                <text x="400" y="176" text-anchor="middle">2024</text>
+              </g>
+            </svg>
+            <button class="src-btn" data-note="Real figure: Oslo Havn's annual report gives yearly TEU throughput tables — usually 5+ years back.">Source &#9432;</button>
+            <div class="src-note" hidden></div>
+          </div>
+
+          <div class="card">
+            <h3>Investment focus</h3>
+            <div class="card-sub">Share of committed capital &middot; sample split</div>
+            <svg viewBox="0 0 300 200" role="img" aria-label="Sample bar chart: energy and shore power 42 percent, redevelopment 28 percent, hinterland connectivity 18 percent, digitalisation 12 percent">
+              <g font-size="11" fill="var(--chart-ink-2)">
+                <text x="0" y="24">Energy / shore power</text>
+                <text x="0" y="70">Redevelopment</text>
+                <text x="0" y="116">Hinterland links</text>
+                <text x="0" y="162">Digitalisation</text>
+              </g>
+              <rect x="0" y="32" width="252" height="16" rx="3" fill="var(--s1)"/>
+              <rect x="0" y="78" width="168" height="16" rx="3" fill="var(--s2)"/>
+              <rect x="0" y="124" width="108" height="16" rx="3" fill="var(--s3)"/>
+              <rect x="0" y="170" width="72" height="16" rx="3" fill="var(--s4)"/>
+              <text x="258" y="45" font-size="11.5" font-weight="600" fill="var(--chart-ink)">42%</text>
+              <text x="174" y="91" font-size="11.5" font-weight="600" fill="var(--chart-ink)">28%</text>
+              <text x="114" y="137" font-size="11.5" font-weight="600" fill="var(--chart-ink)">18%</text>
+              <text x="78" y="183" font-size="11.5" font-weight="600" fill="var(--chart-ink)">12%</text>
+            </svg>
+            <button class="src-btn" data-note="Real figure: Oslo Havn's investment plan / annual report usually breaks capital spend down by area.">Source &#9432;</button>
+            <div class="src-note" hidden></div>
+          </div>
+        </div>
+
+        <div class="scorecard-row">
+          <div class="score-card"><span class="pip" style="background:var(--warning)"></span><div><div class="sc-label">Shore power coverage <span class="tag-sample">sample</span></div><div class="sc-note">Partial &mdash; live at select berths, expanding</div><button class="src-btn" data-note="Real figure: Oslo Havn's climate & environment pages (zero-emissions-port) and ENOVA project pages.">Source &#9432;</button><div class="src-note" hidden></div></div></div>
+          <div class="score-card"><span class="pip" style="background:var(--good)"></span><div><div class="sc-label">Vessel emissions vs. 2019 <span class="tag-sample">sample</span></div><div class="sc-note">Trending down as electrification scales</div><button class="src-btn" data-note="Real figure: Oslo Havn's environmental reporting / climate accounts, benchmarked against SSB emissions data.">Source &#9432;</button><div class="src-note" hidden></div></div></div>
+          <div class="score-card"><span class="pip" style="background:var(--warning)"></span><div><div class="sc-label">Electrified terminal equipment <span class="tag-sample">sample</span></div><div class="sc-note">In progress, not yet fleet-wide</div><button class="src-btn" data-note="Real figure: Oslo Havn news/press releases on terminal electrification (e.g. Yilport equipment at Sjursøya).">Source &#9432;</button><div class="src-note" hidden></div></div></div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Cargo segment</th><th>2024 share</th><th>YoY trend</th><th>Source</th></tr></thead>
+            <tbody>
+              <tr><td>Containers (Sjursøya)</td><td class="num">&mdash; add figure</td><td class="num">&mdash;</td><td>Oslo Havn annual report</td></tr>
+              <tr><td>Dry bulk (grain, salt, cement)</td><td class="num">&mdash; add figure</td><td class="num">&mdash;</td><td>Oslo Havn annual report</td></tr>
+              <tr><td>Liquid bulk (oil)</td><td class="num">&mdash; add figure</td><td class="num">&mdash;</td><td>Oslo Havn annual report</td></tr>
+              <tr><td>Ro-Ro / vehicles</td><td class="num">&mdash; add figure</td><td class="num">&mdash;</td><td>Oslo Havn annual report</td></tr>
+              <tr><td>Cruise &amp; ferry passengers</td><td class="num">&mdash; add figure</td><td class="num">&mdash;</td><td>Oslo Havn / SSB</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  if (window.THREE && THREE.ColorManagement) { THREE.ColorManagement.enabled = false; }
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+    (document.documentElement.getAttribute('data-theme') !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  var palette = isDark
+    ? { fog: 0x123244, water: 0x0b2b38, waterShallow: 0x123a49,
+        concrete: 0x6b7268, roof: 0xfbfaf6, glass: 0x2bd6c4, warm: 0xe8a94f, brass: 0xe8a94f,
+        brick: 0x8a4a3a, container1: 0x2bd6c4, container2: 0xe8a94f, container3: 0xe7e5da, crane: 0x2c3a3f,
+        hillFar: 0x1c3644, hillNear: 0x142838, routeCargo: 0x3987e5, routeFerry: 0xd95926, ship: 0xe7e5da }
+    : { fog: 0xe9f1ee, water: 0x173b4c, waterShallow: 0x2a5a6c,
+        concrete: 0x9aa39c, roof: 0xffffff, glass: 0x0e8f82, warm: 0xc9862e, brass: 0xc9862e,
+        brick: 0xa15a44, container1: 0x0e8f82, container2: 0xc9862e, container3: 0xe7e5da, crane: 0x2c3a3f,
+        hillFar: 0x9fb9ba, hillNear: 0x7ea1a0, routeCargo: 0x2a78d6, routeFerry: 0xeb6834, ship: 0xf4f2ea };
+
+  /* ---------------- data ---------------- */
+  var CATEGORIES = {
+    cargo: { label: 'Cargo port', slot: 's1' },
+    ferry: { label: 'Passenger & ferry', slot: 's2' },
+    culture: { label: 'Culture & business', slot: 's3' },
+    housing: { label: 'Housing & recreation', slot: 's4' },
+    transition: { label: 'Redevelopment in progress', slot: 's5' }
+  };
+
+  var HOTSPOTS = [
+    {
+      id: 'vippetangen', px: 913, py: 572, name: 'Vippetangen', tag: 'Historic core &middot; international ferries',
+      category: 'ferry',
+      eyebrow: 'Where it started',
+      body: "The historic core of the harbour — where a medieval trading port grew into an industrial one, and later a specialised cargo port. Today it's Oslo's international ferry gateway below Akershus Fortress: Go Nordic Cruiseline sails overnight to Copenhagen and Stena Line runs daily to Frederikshavn from this quay, alongside the grain silo and cruise berths. (Color Line's Kiel ferry uses a separate terminal at Hjortnes, over by Filipstad.)",
+      chips: ['Go Nordic Cruiseline → Copenhagen (overnight)', 'Stena Line → Frederikshavn (~8.5h)', 'Medieval trading harbour → cargo → ferry gateway'],
+      photo: 'photos/vippetangen.jpg', photoCredit: 'Photo: Tore Sætre, CC BY-SA 4.0, via Wikimedia Commons'
+    },
+    {
+      id: 'bjorvika', px: 1150, py: 424, name: 'Bjørvika', tag: 'Opera House &middot; Barcode',
+      category: 'culture',
+      eyebrow: 'The flagship transformation',
+      body: "Once working port, Bjørvika is Oslo's clearest proof that a port can redesign a city. The Opera House sits where cargo ships used to dock, flanked by the glass towers of the Barcode business district. It's the anchor image of the 2000 'Fjordbyen' (Fjord City) decision to move cargo operations southeast and hand the waterfront back to the public.",
+      chips: ['2000 Fjordbyen decision', 'Opera House landmark', 'Barcode business district'],
+      photo: 'photos/opera.jpg', photoCredit: 'Photo: Jorge Láscar, CC BY 2.0, via Wikimedia Commons'
+    },
+    {
+      id: 'sorenga', px: 1111, py: 627, name: 'Sørenga', tag: 'Former quay &middot; housing',
+      category: 'housing',
+      eyebrow: 'Redevelopment beyond one landmark',
+      body: "A former cargo quay turned neighbourhood, right next to Bjørvika: apartment blocks and a floating public swimming dock now sit where port operations used to run — evidence that the fjord-city transformation reaches beyond a single flagship project.",
+      chips: ['Former cargo quay', 'Housing + public swim dock'],
+      photo: 'photos/sorenga.jpg', photoCredit: 'Photo: Annikdance, CC BY-SA 4.0, via Wikimedia Commons'
+    },
+    {
+      id: 'filipstad', px: 363, py: 462, name: 'Filipstad', tag: 'Under construction',
+      category: 'transition',
+      eyebrow: 'The transformation still in progress',
+      body: "Where port infrastructure once stood, housing and public space are now under construction — the newest chapter in Oslo's fjord-city story. Its western edge, Hjortnes, is also where Color Line's overnight ferry to Kiel departs — international ferries and new housing sharing the same redevelopment zone.",
+      chips: ['Redevelopment in progress', 'Housing + public space', 'Hjortnes: Color Line → Kiel (~20h)'],
+      photo: 'photos/filipstad.jpg', photoCredit: 'Photo: Ssu, CC BY-SA 4.0, via Wikimedia Commons'
+    },
+    {
+      id: 'sydhavna', px: 1188, py: 1199, name: 'Sydhavna', tag: 'Sjursøya &middot; active port',
+      category: 'cargo',
+      eyebrow: 'Where the port lives today',
+      body: "Norway's largest container terminal, and the operational heart of the port. Consumer goods, vehicles, grain, oil, salt and cement move through here before reaching Alnabru — the national freight hub — and out by road and rail to reach roughly half of Norway's population within three hours.",
+      chips: ['Cargo: goods, vehicles, grain, salt, cement', 'Connects to Alnabru freight hub', '½ of Norway within 3h'],
+      photo: 'photos/sydhavna.jpg', photoCredit: 'Photo: Niels Johannes, CC BY-SA 4.0, via Wikimedia Commons'
+    },
+    {
+      id: 'akerbrygge', px: 680, py: 325, name: 'Aker Brygge', tag: 'City-centre passenger quays',
+      category: 'ferry',
+      eyebrow: "Passenger boats, not cargo",
+      body: "Right in front of the City Hall, Aker Brygge is where Oslo's LOCAL passenger boats leave from — not the international ferries or the cargo terminals further out. The Nesoddbåten (line B10) crosses the fjord to Nesoddtangen in about 23 minutes, and other boats run to Hovedøya and the islands. Proof the waterfront that once moved cargo now also moves commuters and day-trippers.",
+      chips: ['Nesoddbåten (B10) → Nesoddtangen, ~23 min', 'Boats to Hovedøya & the fjord islands', 'Distinct from Vippetangen’s international ferries'],
+      photo: 'photos/akerbrygge.jpg', photoCredit: 'Photo: W. Bulach, CC BY-SA 4.0, via Wikimedia Commons'
+    }
+  ];
+
+  /* Oslo Havn's own port area map (oslohavn.no) as the ground texture.
+     IMG_W/IMG_H are the published image's pixel size; PLANE_W/H are the
+     Three.js world-unit size of the ground plane it's mapped onto. */
+  var IMG_W = 2200, IMG_H = 1546;
+  var PLANE_W = 150, PLANE_H = PLANE_W * (IMG_H / IMG_W);
+  var GROUND_Y = 0.08;
+  function mapToWorld(px, py) {
+    return { x: (px / IMG_W - 0.5) * PLANE_W, z: (py / IMG_H - 0.5) * PLANE_H };
+  }
+  HOTSPOTS.forEach(function (h) {
+    var w = mapToWorld(h.px, h.py);
+    h.wx = w.x; h.wz = w.z;
+  });
+
+  /* ---------------- hotspot rail + legend + drawer ---------------- */
+  var rail = document.getElementById('hotspot-rail');
+  HOTSPOTS.forEach(function (h) {
+    var btn = document.createElement('button');
+    btn.className = 'hotspot-chip';
+    btn.type = 'button';
+    btn.setAttribute('aria-pressed', 'false');
+    btn.dataset.id = h.id;
+    btn.style.setProperty('--cat-color', 'var(--' + CATEGORIES[h.category].slot + ')');
+    btn.innerHTML = '<span class="hc-name">' + h.name + '</span><span class="hc-tag">' + h.tag + '</span>';
+    btn.addEventListener('click', function () { selectHotspot(h.id); });
+    rail.appendChild(btn);
+  });
+
+  var legendRows = document.getElementById('legend-rows');
+  Object.keys(CATEGORIES).forEach(function (key) {
+    var cat = CATEGORIES[key];
+    var row = document.createElement('div');
+    row.className = 'lg-row';
+    row.innerHTML = '<span class="lg-dot" style="--dot:var(--' + cat.slot + ')"></span>' + cat.label;
+    legendRows.appendChild(row);
+  });
+
+  var drawer = document.getElementById('drawer');
+  var hint = document.getElementById('hint');
+  var activeId = null;
+
+  function selectHotspot(id) {
+    var h = HOTSPOTS.filter(function (x) { return x.id === id; })[0];
+    if (!h) return;
+    activeId = id;
+    document.querySelectorAll('.hotspot-chip').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.id === id));
+    });
+    var img = document.getElementById('drawer-img');
+    img.src = h.photo; img.alt = h.name + ' — ' + h.tag;
+    document.getElementById('drawer-credit').textContent = h.photoCredit;
+    var catEl = document.getElementById('drawer-cat');
+    catEl.style.setProperty('--dot', 'var(--' + CATEGORIES[h.category].slot + ')');
+    catEl.innerHTML = '<span class="dot"></span>' + CATEGORIES[h.category].label;
+    document.getElementById('drawer-eyebrow').textContent = h.eyebrow;
+    document.getElementById('drawer-title').textContent = h.name;
+    document.getElementById('drawer-body').textContent = h.body;
+    var chipsEl = document.getElementById('drawer-chips');
+    chipsEl.innerHTML = '';
+    h.chips.forEach(function (c) { var s = document.createElement('span'); s.textContent = c; chipsEl.appendChild(s); });
+    drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    rail.classList.add('drawer-open');
+    hint.hidden = true;
+    flyTo(h, true);
+  }
+
+  function closeDrawer() {
+    activeId = null;
+    document.querySelectorAll('.hotspot-chip').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+    drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    rail.classList.remove('drawer-open');
+    flyTo(null, true);
+  }
+  document.getElementById('drawer-close').addEventListener('click', closeDrawer);
+
+  /* ---------------- three.js scene ---------------- */
+  var canvas = document.getElementById('scene');
+  var scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(palette.fog, 80, 220);
+
+  var camera = new THREE.PerspectiveCamera(42, 1, 0.1, 500);
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+  renderer.setClearColor(0x000000, 0);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  scene.add(new THREE.AmbientLight(0xffffff, isDark ? 0.7 : 0.85));
+  var sun = new THREE.DirectionalLight(0xfff2df, isDark ? 0.5 : 0.75);
+  sun.position.set(-30, 40, 20);
+  scene.add(sun);
+  var fill = new THREE.DirectionalLight(isDark ? 0x2bd6c4 : 0x8fd6ff, 0.2);
+  fill.position.set(20, 15, -30);
+  scene.add(fill);
+
+  function mat(c) { return new THREE.MeshLambertMaterial({ color: c }); }
+  function box(w, h, d, color) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); }
+
+  /* ground: Oslo Havn's own port-area map, textured flat under the 3D pop-ups.
+     A soft dark rim disc behind it stops the sky from peeking under the edges. */
+  var rim = new THREE.Mesh(new THREE.CircleGeometry(PLANE_W * 0.75, 48), mat(palette.water));
+  rim.rotation.x = -Math.PI / 2; rim.position.y = GROUND_Y - 0.06;
+  scene.add(rim);
+
+  var mapTexture = new THREE.TextureLoader().load('oslo-map.jpg');
+  mapTexture.anisotropy = 4;
+  var ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(PLANE_W, PLANE_H),
+    new THREE.MeshBasicMaterial({ map: mapTexture })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = GROUND_Y;
+  scene.add(ground);
+
+  /* distant fjord hills — a low-poly ring beyond the map, for atmosphere/depth */
+  (function () {
+    var ringR = PLANE_W * 0.62, n = 22;
+    for (var i = 0; i < n; i++) {
+      var a = (i / n) * Math.PI * 2 + (i % 3) * 0.05;
+      var far = i % 2 === 0;
+      var r = ringR + (far ? 14 : 2) + (i % 5) * 3;
+      var h = (far ? 10 : 16) + ((i * 53) % 12);
+      var hill = new THREE.Mesh(
+        new THREE.ConeGeometry(9 + (i % 4) * 3, h, 6),
+        mat(far ? palette.hillFar : palette.hillNear)
+      );
+      hill.position.set(Math.sin(a) * r, h / 2 - 2.5, Math.cos(a) * r);
+      hill.rotation.y = a;
+      scene.add(hill);
+    }
+  })();
+
+  /* shipping routes: a schematic dashed lane + a small marker sailing it */
+  var SHIP_ROUTES = [];
+  function shippingRoute(from, mid, to, color, speed, phase) {
+    var curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(from.x, GROUND_Y + 0.15, from.z),
+      new THREE.Vector3(mid.x, GROUND_Y + 0.15, mid.z),
+      new THREE.Vector3(to.x, GROUND_Y + 0.15, to.z)
+    ]);
+    var pts = curve.getPoints(40);
+    var geo = new THREE.BufferGeometry().setFromPoints(pts);
+    var line = new THREE.Line(geo, new THREE.LineDashedMaterial({ color: color, dashSize: 1.4, gapSize: 0.9, transparent: true, opacity: 0.7 }));
+    line.computeLineDistances();
+    scene.add(line);
+
+    var ship = new THREE.Group();
+    var hull = box(1.6, 0.4, 0.6, palette.ship); hull.position.y = 0.2; ship.add(hull);
+    var cabin = box(0.5, 0.4, 0.5, color); cabin.position.set(-0.3, 0.55, 0); ship.add(cabin);
+    scene.add(ship);
+    SHIP_ROUTES.push({ curve: curve, ship: ship, speed: speed, phase: phase });
+  }
+
+  shippingRoute(mapToWorld(1188, 1199), { x: 20, z: 42 }, { x: -18, z: 58 }, palette.routeCargo, 0.05, 0);
+  shippingRoute(mapToWorld(913, 572), { x: -22, z: 18 }, { x: -30, z: 55 }, palette.routeFerry, 0.045, 0.33);
+  shippingRoute(mapToWorld(680, 325), { x: -34, z: -5 }, { x: -22, z: 22 }, palette.routeFerry, 0.09, 0.66);
+
+  function crane(x, z, topY) {
+    var g = new THREE.Group();
+    var mast = box(0.6, 8, 0.6, palette.crane); mast.position.set(0, topY + 4, 0); g.add(mast);
+    var boom = box(9, 0.5, 0.5, palette.crane); boom.position.set(3, topY + 7.6, 0); g.add(boom);
+    var counter = box(2.2, 0.5, 0.5, palette.crane); counter.position.set(-3.2, topY + 7.6, 0); g.add(counter);
+    var cable = box(0.08, 3.2, 0.08, 0x1c1c1c); cable.position.set(5.5, topY + 6, 0); g.add(cable);
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  function glowSprite(color, size) {
+    var c = document.createElement('canvas'); c.width = c.height = 128;
+    var ctx = c.getContext('2d');
+    var grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+    grad.addColorStop(0.4, 'rgba(255,255,255,0.35)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 128, 128);
+    var tex = new THREE.CanvasTexture(c);
+    var mat = new THREE.SpriteMaterial({ map: tex, color: color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    var spr = new THREE.Sprite(mat);
+    spr.scale.set(size, size, 1);
+    return spr;
+  }
+
+  function boxUnlit(w, h, d, color) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: color })); }
+
+  function opera(x, z, topY) {
+    var g = new THREE.Group();
+    var glow = glowSprite(isDark ? 0x8fe9d8 : 0xffffff, 13);
+    glow.position.set(0.6, topY + 1.6, 0);
+    g.add(glow);
+    var base = box(9, 0.6, 7, 0xdedad0); base.position.set(0, topY + 0.3, 0); g.add(base);
+    var r1 = boxUnlit(6.4, 0.25, 4.6, palette.roof); r1.position.set(-0.6, topY + 0.9, 0.2); r1.rotation.z = 0.14; r1.rotation.x = -0.05; g.add(r1);
+    var r2 = boxUnlit(5, 0.25, 3.6, palette.roof); r2.position.set(1.6, topY + 1.6, -0.6); r2.rotation.z = -0.1; r2.rotation.x = 0.08; g.add(r2);
+    var r3 = boxUnlit(3, 0.25, 2.4, palette.roof); r3.position.set(2.6, topY + 2.4, 0.4); r3.rotation.z = -0.22; g.add(r3);
+    var glass = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.5, 0.15), new THREE.MeshBasicMaterial({ color: palette.warm }));
+    glass.position.set(0.4, topY + 1.4, 2.1); g.add(glass);
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  function marina(x, z, topY) {
+    var g = new THREE.Group();
+    var pav = box(4, 2.2, 3, palette.concrete); pav.position.set(-1.5, topY + 1.1, 0.5); g.add(pav);
+    var glassWall = boxUnlit(4.1, 1.2, 0.1, palette.glass); glassWall.position.set(-1.5, topY + 0.6, 2.05); g.add(glassWall);
+    var boatColors = [0xf4f2ea, palette.warm, 0xf4f2ea];
+    for (var i = 0; i < 3; i++) {
+      var hull = box(1.6, 0.35, 0.55, boatColors[i]);
+      hull.position.set(2 + i * 1.9, topY + 0.2, -2.4 - (i % 2) * 0.3);
+      g.add(hull);
+    }
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  function barcode(x, z, topY) {
+    var g = new THREE.Group();
+    var heights = [5, 7, 4.5, 6.2];
+    var colors = [palette.glass, palette.concrete, palette.glass, palette.warm];
+    heights.forEach(function (h, i) {
+      var b = box(1.1, h, 2.2, colors[i]);
+      b.position.set(i * 1.5 - 2.2, topY + h / 2, 0);
+      g.add(b);
+    });
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  function containers(x, z, topY) {
+    var g = new THREE.Group();
+    var colors = [palette.container1, palette.container2, palette.container3, palette.container1, palette.container2];
+    for (var i = 0; i < 5; i++) {
+      var c = box(2.4, 1.1, 1.1, colors[i % colors.length]);
+      c.position.set(-5 + i * 1.7, topY + 0.55 + (i % 2) * 1.15, (i % 3) * 1.3 - 1);
+      g.add(c);
+    }
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  function housing(x, z, topY) {
+    var g = new THREE.Group();
+    var colors = [0xb85c4a, 0x3c5a6e, 0xd9c27a, 0x6b7d6a];
+    for (var i = 0; i < 4; i++) {
+      var h = 2.6 + (i % 2) * 1.1;
+      var b = box(1.8, h, 2.4, colors[i]);
+      b.position.set(-3 + i * 2, topY + h / 2, 0);
+      g.add(b);
+      var roof = box(1.9, 0.4, 2.5, 0x2c2c2a);
+      roof.position.set(-3 + i * 2, topY + h + 0.2, 0);
+      g.add(roof);
+    }
+    var dock = box(3, 0.2, 6, palette.waterShallow);
+    dock.position.set(4.5, topY + 0.05, -4);
+    g.add(dock);
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  function constructionSite(x, z, topY) {
+    var g = new THREE.Group();
+    g.add(crane(-2, 0, topY));
+    var done = box(2, 3.5, 2.4, palette.concrete); done.position.set(2, topY + 1.75, 0.5); g.add(done);
+    var shellGeo = new THREE.BoxGeometry(2, 2.6, 2.2);
+    var shellMat = new THREE.MeshLambertMaterial({ color: palette.warm, transparent: true, opacity: 0.35 });
+    var shell = new THREE.Mesh(shellGeo, shellMat); shell.position.set(4.6, topY + 1.3, -0.5); g.add(shell);
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  function warehouseAndFerry(x, z, topY) {
+    var g = new THREE.Group();
+    var wh = box(8, 2.4, 3, palette.brick); wh.position.set(-1, topY + 1.2, 1); g.add(wh);
+    var whRoof = box(8.4, 0.3, 3.4, 0x2c2c2a); whRoof.position.set(-1, topY + 2.55, 1); g.add(whRoof);
+    var hull = box(5.5, 1, 1.8, 0xe7e5da); hull.position.set(3.5, topY + 0.5, -3); g.add(hull);
+    var cabin = box(1.6, 1.1, 1.4, palette.glass); cabin.position.set(4.8, topY + 1.35, -3); g.add(cabin);
+    g.position.set(x, 0, z);
+    return g;
+  }
+
+  var LANDMARK_SCALE = 0.8;
+  HOTSPOTS.forEach(function (h) {
+    var x = h.wx, z = h.wz, topY = GROUND_Y;
+    var g, scaleMul = 1;
+    if (h.id === 'vippetangen') g = warehouseAndFerry(x, z, topY);
+    else if (h.id === 'bjorvika') {
+      g = new THREE.Group(); g.add(opera(x, z, topY)); g.add(barcode(x + 3, z - 2.5, topY));
+      scaleMul = 1.5;
+    }
+    else if (h.id === 'sorenga') g = housing(x, z, topY);
+    else if (h.id === 'filipstad') g = constructionSite(x, z, topY);
+    else if (h.id === 'akerbrygge') g = marina(x, z, topY);
+    else {
+      g = new THREE.Group();
+      g.add(containers(x, z, topY));
+      g.add(crane(x - 3.5, z - 3, topY));
+      g.add(crane(x + 3.5, z - 3, topY));
+    }
+    g.scale.setScalar(LANDMARK_SCALE * scaleMul);
+    g.userData.hotspotId = h.id;
+    g.traverse(function (o) { o.userData.hotspotId = h.id; });
+    scene.add(g);
+
+    /* a small marker pin so each site reads clearly at overview distance */
+    if (h.id !== 'bjorvika') {
+      var pin = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 16), new THREE.MeshBasicMaterial({ color: palette.brass }));
+      pin.position.set(x, topY + 3.2, z);
+      pin.userData.hotspotId = h.id;
+      scene.add(pin);
+      var stem = box(0.09, 3.2, 0.09, palette.brass);
+      stem.position.set(x, topY + 1.6, z);
+      stem.userData.hotspotId = h.id;
+      scene.add(stem);
+    }
+  });
+
+  /* ---------------- camera rig ---------------- */
+  var centroid = HOTSPOTS.reduce(function (a, h) { return { x: a.x + h.wx / HOTSPOTS.length, z: a.z + h.wz / HOTSPOTS.length }; }, { x: 0, z: 0 });
+  var OVERVIEW = { tx: centroid.x, tz: centroid.z, dist: 95, az: 0.85, el: 0.85 };
+  var FOCUS_DIST = 13, FOCUS_EL = 0.38;
+
+  var cam = { tx: OVERVIEW.tx, tz: OVERVIEW.tz, dist: OVERVIEW.dist, az: OVERVIEW.az, el: OVERVIEW.el };
+  var goal = { tx: cam.tx, tz: cam.tz, dist: cam.dist, az: cam.az, el: cam.el };
+  var animStart = null, animFrom = null, animDur = 1400;
+  var autoRotate = !reduceMotion;
+  var userInteracted = false;
+
+  function flyTo(h, userTriggered) {
+    autoRotate = false;
+    var target;
+    if (h === null) {
+      target = OVERVIEW;
+    } else {
+      var dx = h.wx - cam.tx;
+      var dist = h.id === 'bjorvika' ? FOCUS_DIST * 1.4 : FOCUS_DIST;
+      target = { tx: h.wx, tz: h.wz, dist: dist, el: FOCUS_EL, az: Math.atan2(dx, 24) * 0.7 + 0.35 };
+    }
+    animFrom = { tx: cam.tx, tz: cam.tz, dist: cam.dist, az: cam.az, el: cam.el };
+    goal = target;
+    animStart = reduceMotion ? null : performance.now();
+    if (reduceMotion) { cam = { tx: goal.tx, tz: goal.tz, dist: goal.dist, az: goal.az, el: goal.el }; }
+  }
+
+  function easeInOutCubic(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+
+  function updateCamera() {
+    if (animStart !== null) {
+      var t = Math.min(1, (performance.now() - animStart) / animDur);
+      var e = easeInOutCubic(t);
+      cam.tx = animFrom.tx + (goal.tx - animFrom.tx) * e;
+      cam.tz = animFrom.tz + (goal.tz - animFrom.tz) * e;
+      cam.dist = animFrom.dist + (goal.dist - animFrom.dist) * e;
+      cam.az = animFrom.az + (goal.az - animFrom.az) * e;
+      cam.el = animFrom.el + (goal.el - animFrom.el) * e;
+      if (t >= 1) animStart = null;
+    } else if (autoRotate) {
+      cam.az += 0.0006;
+    }
+    var x = cam.tx + cam.dist * Math.cos(cam.el) * Math.sin(cam.az);
+    var y = Math.max(2, cam.dist * Math.sin(cam.el));
+    var z = cam.tz + cam.dist * Math.cos(cam.el) * Math.cos(cam.az);
+    camera.position.set(x, y, z);
+    camera.lookAt(cam.tx, 1.4, cam.tz);
+  }
+
+  /* ---------------- pointer interaction ---------------- */
+  var raycaster = new THREE.Raycaster();
+  var pointer = new THREE.Vector2();
+  var dragging = false, dragMoved = false, lastX = 0, lastY = 0;
+
+  canvas.addEventListener('pointerdown', function (e) {
+    dragging = true; dragMoved = false; lastX = e.clientX; lastY = e.clientY;
+    autoRotate = false; animStart = null;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    var dx = e.clientX - lastX, dy = e.clientY - lastY;
+    if (Math.abs(dx) + Math.abs(dy) > 3) dragMoved = true;
+    cam.az -= dx * 0.005;
+    cam.el = Math.min(1.2, Math.max(0.12, cam.el + dy * 0.004));
+    lastX = e.clientX; lastY = e.clientY;
+  });
+  window.addEventListener('pointerup', function () { dragging = false; });
+
+  canvas.addEventListener('click', function (e) {
+    if (dragMoved) return;
+    if (!userInteracted) { userInteracted = true; hint.hidden = true; }
+    var rect = canvas.getBoundingClientRect();
+    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    var hits = raycaster.intersectObjects(scene.children, true);
+    for (var i = 0; i < hits.length; i++) {
+      var id = hits[i].object.userData.hotspotId;
+      if (id) { selectHotspot(id); return; }
+    }
+  });
+
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    cam.dist = Math.min(160, Math.max(8, cam.dist + e.deltaY * 0.05));
+  }, { passive: false });
+
+  /* ---------------- resize + loop ---------------- */
+  function resize() {
+    var w = canvas.clientWidth || canvas.parentElement.clientWidth;
+    var h = canvas.clientHeight || canvas.parentElement.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function updateShips(t) {
+    SHIP_ROUTES.forEach(function (r) {
+      var u = reduceMotion ? r.phase : (t * r.speed + r.phase) % 1;
+      var p = r.curve.getPointAt(u);
+      var ahead = r.curve.getPointAt((u + 0.01) % 1);
+      r.ship.position.copy(p);
+      r.ship.lookAt(ahead.x, p.y, ahead.z);
+    });
+  }
+
+  function loop(t) {
+    updateCamera();
+    updateShips((t || 0) / 1000);
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  /* ---------------- source citation toggles ---------------- */
+  document.querySelectorAll('.src-btn').forEach(function (btn) {
+    var note = btn.nextElementSibling;
+    note.textContent = btn.dataset.note;
+    btn.addEventListener('click', function () { note.hidden = !note.hidden; });
+  });
+})();
+</script>
