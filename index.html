@@ -1028,8 +1028,19 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
   });
 
   /* ---------------- camera rig ---------------- */
-  var centroid = HOTSPOTS.reduce(function (a, h) { return { x: a.x + h.wx / HOTSPOTS.length, z: a.z + h.wz / HOTSPOTS.length }; }, { x: 0, z: 0 });
-  var OVERVIEW = { tx: centroid.x, tz: centroid.z, dist: 95, az: 0.85, el: 0.85 };
+  /* The overview pivot is the centre of the whole harbour's bounding box, not the
+     average of hotspot points — averaging points skews toward wherever hotspots are
+     clustered (five of six sit close together near Vippetangen), which put the
+     rotation axis almost exactly on Vippetangen and made Sydhavna, the outlier to
+     the south, swing awkwardly around the edge instead of sitting in view. */
+  var bounds = HOTSPOTS.reduce(function (a, h) {
+    return {
+      minX: Math.min(a.minX, h.wx), maxX: Math.max(a.maxX, h.wx),
+      minZ: Math.min(a.minZ, h.wz), maxZ: Math.max(a.maxZ, h.wz)
+    };
+  }, { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity });
+  var mapCenter = { x: (bounds.minX + bounds.maxX) / 2, z: (bounds.minZ + bounds.maxZ) / 2 };
+  var OVERVIEW = { tx: mapCenter.x, tz: mapCenter.z, dist: 108, az: 0.85, el: 0.82 };
   var FOCUS_DIST = 14, FOCUS_EL = 0.55;
 
   var cam = { tx: OVERVIEW.tx, tz: OVERVIEW.tz, dist: OVERVIEW.dist, az: OVERVIEW.az, el: OVERVIEW.el };
