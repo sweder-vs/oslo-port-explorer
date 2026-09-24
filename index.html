@@ -122,7 +122,6 @@ img { max-width: 100%; }
 .drawer-body { font-size: 14.5px; line-height: 1.6; color: var(--ink-2); margin-bottom: 14px; }
 .drawer-chips { display: flex; flex-direction: column; gap: 6px; }
 .drawer-chips span { font-size: 13.5px; background: var(--seg); padding: 8px 12px; border-radius: 10px; }
-.drawer-flag { margin-top: 14px; font-size: 12.5px; color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); border: 1px dashed color-mix(in srgb, var(--warn) 45%, transparent); border-radius: 10px; padding: 9px 11px; line-height: 1.4; }
 /* once a site is open, get the rail out of the way so there's room to actually see it */
 #hotspot-rail.drawer-open { opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
 @media (max-width: 560px) {
@@ -243,7 +242,7 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
     </div>
   </div>
 
-  <div class="callout" style="margin:0 0 20px"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="8" stroke="var(--second-strong)" stroke-width="1.5"/><path d="M9 8v5M9 5.2v.1" stroke="var(--second-strong)" stroke-width="1.6" stroke-linecap="round"/></svg><span><b>Real, cited figures.</b> Growth, employment and target figures are from Oslo Havn's <i>Årsberetning 2025</i>; other cards still cite <i>Årsberetning 2024</i> where unaffected, with the source under each card &mdash; worth a final check against the reports before you submit. Note: Oslo Havn restated its 2021&ndash;2024 figures when it published the 2025 report, so a few numbers here differ from what the 2024 report alone would show &mdash; a real data-comparability point, not an error.</span></div>
+  <div class="callout" style="margin:0 0 20px"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="8" stroke="var(--second-strong)" stroke-width="1.5"/><path d="M9 8v5M9 5.2v.1" stroke="var(--second-strong)" stroke-width="1.6" stroke-linecap="round"/></svg><span><b>Real, cited figures.</b> Growth, employment and target figures are from Oslo Havn's <i>Årsberetning 2025</i>; other cards still cite <i>Årsberetning 2024</i> where unaffected, with the source under each card. Oslo Havn restated its 2021&ndash;2024 figures when it published the 2025 report, so a few numbers here differ from what the 2024 report alone would show &mdash; a real data-comparability point, not an error.</span></div>
 
   <div class="grid">
     <!-- KPI strip -->
@@ -302,7 +301,6 @@ footer { margin-top: 20px; font-size: 13px; color: var(--muted); text-align: cen
           <h2 class="drawer-title" id="drawer-title"></h2>
           <p class="drawer-body" id="drawer-body"></p>
           <div class="drawer-chips" id="drawer-chips"></div>
-          <div class="drawer-flag">Draft copy &mdash; confirm exact dates &amp; figures before submitting.</div>
         </aside>
       </div>
     </section>
