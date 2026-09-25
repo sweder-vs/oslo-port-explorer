@@ -120,8 +120,8 @@ img { max-width: 100%; }
 .drawer-photo { position: relative; margin: 0 -8px 14px; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--r-inner); background: var(--seg); }
 .drawer-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .drawer-credit { position: absolute; left: 0; right: 0; bottom: 0; padding: 16px 10px 6px; font-size: 11px; color: rgba(255,255,255,.88); background: linear-gradient(0deg, rgba(0,0,0,.6), transparent); }
-.drawer-photo-nav { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 8px; }
-.drawer-photo-nav button { appearance: none; border: 0; cursor: pointer; width: 26px; height: 26px; border-radius: 50%; background: rgba(10,14,18,.5); color: #fff; font-size: 17px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.drawer-photo-nav { position: absolute; top: 0; left: 0; right: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 8px; pointer-events: none; }
+.drawer-photo-nav button { appearance: none; border: 0; cursor: pointer; width: 26px; height: 26px; border-radius: 50%; background: rgba(10,14,18,.5); color: #fff; font-size: 17px; line-height: 1; display: flex; align-items: center; justify-content: center; pointer-events: auto; }
 .drawer-photo-nav button:hover { background: rgba(10,14,18,.7); }
 .photo-dots { display: flex; gap: 5px; }
 .photo-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.4); }
